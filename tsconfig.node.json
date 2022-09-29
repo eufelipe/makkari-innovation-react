@@ -1,9 +1,15 @@
 {
   "compilerOptions": {
+    "types": ["node"],
     "composite": true,
     "module": "ESNext",
     "moduleResolution": "Node",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "rootDir": "./src",
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./src"]
+    }
   },
   "include": ["vite.config.ts"]
 }
