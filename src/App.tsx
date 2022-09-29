@@ -1,10 +1,13 @@
+import { Header } from "@/components";
 import { theme } from "@/styles/theme";
-import { ChakraProvider } from "@chakra-ui/react";
+import { Box, ChakraProvider } from "@chakra-ui/react";
 
 function App() {
   return (
     <ChakraProvider resetCSS theme={theme}>
-      <h1>Makkari app</h1>
+      <Box maxWidth={1120} margin="0 auto">
+        <Header />
+      </Box>
     </ChakraProvider>
   );
 }
