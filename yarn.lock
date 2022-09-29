@@ -1846,6 +1846,13 @@ react-player@^2.11.0:
     prop-types "^15.7.2"
     react-fast-compare "^3.0.1"
 
+react-record-webcam@^0.0.14:
+  version "0.0.14"
+  resolved "https://registry.yarnpkg.com/react-record-webcam/-/react-record-webcam-0.0.14.tgz#9d8cb4b0f6c11673a5a10417fffcbb6366d0267b"
+  integrity sha512-SUowthW0Ig3KV9qowaTcC9gmq+paALY72Xp8KG2RMJ2igQ4Cblyvt6C2U2AL8J8Sbjlmj8mG7RcKSzZ1EhFAMA==
+  dependencies:
+    recordrtc "5.6.2"
+
 react-refresh@^0.14.0:
   version "0.14.0"
   resolved "https://registry.yarnpkg.com/react-refresh/-/react-refresh-0.14.0.tgz#4e02825378a5f227079554d4284889354e5f553e"
@@ -1885,6 +1892,11 @@ react@^18.2.0:
   integrity sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==
   dependencies:
     loose-envify "^1.1.0"
+
+recordrtc@5.6.2:
+  version "5.6.2"
+  resolved "https://registry.yarnpkg.com/recordrtc/-/recordrtc-5.6.2.tgz#48fc214b35084973ccce82c6251198b5742bc327"
+  integrity sha512-1QNKKNtl7+KcwD1lyOgP3ZlbiJ1d0HtXnypUy7yq49xEERxk31PHvE9RCciDrulPCY7WJ+oz0R9hpNxgsIurGQ==
 
 regenerator-runtime@^0.13.4:
   version "0.13.9"
