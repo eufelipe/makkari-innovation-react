@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   ChakraProvider,
+  Divider,
   Flex,
   Grid,
   GridItem,
@@ -29,6 +30,7 @@ import type {
   RecordWebcamOptions,
 } from "react-record-webcam";
 import { CAMERA_STATUS } from "react-record-webcam";
+import s3, { BUCKET_NAME } from "./instances/s3";
 
 const OPTIONS: RecordWebcamOptions = {
   filename: "test-filename",
@@ -60,7 +62,9 @@ function Admin() {
   const id = queryParams.get("id");
 
   const [url, setUrl] = useState();
+  const [enableButtonSave, setEnableButtonSave] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [controls, setControls] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const reactPlayerRef = useRef<any>();
@@ -70,15 +74,11 @@ function Admin() {
 
   const getRecordingFileHooks = async () => {
     const blob = await recordWebcam.getRecording();
-    console.log({ blob });
+    return blob;
   };
 
   const getRecordingFileRenderProp = async (blob: Blob | undefined) => {
     console.log({ blob });
-  };
-
-  const saveFile = async () => {
-    // const blob = await recordWebcam.getRecording();
   };
 
   const startRecording = () => {
@@ -111,10 +111,60 @@ function Admin() {
     recordWebcam.retake();
     setStatus(STATUS.stop.id);
     setShowPreview(true);
+    setEnableButtonSave(true);
   };
 
   const previewRecording = () => {
     setShowPreview(true);
+  };
+
+  const reset = () => {
+    setShowPreview(false);
+    setPlaying(false);
+    setControls(false);
+    recordWebcam.retake();
+    setStatus(STATUS.idle.id);
+    setEnableButtonSave(false);
+  };
+
+  const saveRecording = async () => {
+    if (!id) {
+      alert("No video to save");
+      return;
+    }
+    setLoading(true);
+
+    const blob = await getRecordingFileHooks();
+
+    let videoId = `${id}`.split("v=")[1];
+    const ampersandPosition = videoId.indexOf("&");
+    if (ampersandPosition !== -1) {
+      videoId = videoId.substring(0, ampersandPosition);
+    }
+
+    s3.putObject(
+      {
+        Bucket: BUCKET_NAME || "",
+        Key: `${videoId}.mp4`,
+        Body: blob as any,
+      },
+      (err, data) => {
+        if (err) {
+          console.log(err);
+          alert("Erro ao salvar vídeo");
+          setLoading(false);
+          return;
+        }
+        console.log(data);
+        alert("Vídeo salvo com sucesso");
+        setLoading(false);
+      }
+    );
+
+    setShowPreview(false);
+    setPlaying(false);
+    setControls(false);
+    setStatus(STATUS.save.id);
   };
 
   useEffect(() => {
@@ -229,6 +279,28 @@ function Admin() {
             </Menu>
           </Flex>
 
+          {enableButtonSave && (
+            <Flex mb="8" justify="space-between" align="center">
+              <Button
+                w="100%"
+                colorScheme="green"
+                size="lg"
+                onClick={saveRecording}
+              >
+                SALVAR
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                color="white"
+                ml="5"
+                onClick={reset}
+              >
+                Refazer
+              </Button>
+            </Flex>
+          )}
+
           <Box
             position="relative"
             overflow="hidden"
@@ -246,9 +318,11 @@ function Admin() {
               }}
               onEnded={() => {
                 setStatus(STATUS.preview.id);
+                setEnableButtonSave(true);
               }}
               loading="lazy"
             />
+
             <Box
               position="absolute"
               bottom="14"
@@ -321,6 +395,7 @@ function Admin() {
             </GridItem>
           </Grid>
         </Box>
+        <Divider />
         <Text color="white">Camera status: {recordWebcam.status}</Text>
       </Box>
     </ChakraProvider>
