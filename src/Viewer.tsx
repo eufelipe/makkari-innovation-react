@@ -95,12 +95,24 @@ function Viewer() {
               justifyContent="center"
               alignItems="center"
             >
-              <ReactPlayer
+              <Box
+                as="video"
+                controls
+                width="200px"
+                height="150px"
+                src={`https://innovathon.s3.amazonaws.com/Libras.mp4`}
+                objectFit="contain"
+                sx={{
+                  aspectRatio: "16/9",
+                }}
+              />
+
+              {/* <ReactPlayer
                 width="200px"
                 height="150px"
                 url={`https://innovathon.s3.amazonaws.com/${id}.mp4`}
                 loading="lazy"
-              />
+              /> */}
             </Box>
           </Box>
         </Box>

@@ -11,25 +11,17 @@ import {
   Heading,
   HStack,
   Input,
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuList,
+  Spinner,
   Stack,
   Text,
   VStack,
 } from "@chakra-ui/react";
 
 import ReactPlayer from "react-player";
-import { useRecordWebcam } from "react-record-webcam";
+import { RecordWebcam } from "react-record-webcam";
 
-import { ChevronDownIcon } from "@chakra-ui/icons";
 import { useEffect, useRef, useState } from "react";
-import type {
-  RecordWebcamHook,
-  RecordWebcamOptions,
-} from "react-record-webcam";
-import { CAMERA_STATUS } from "react-record-webcam";
+import type { RecordWebcamOptions } from "react-record-webcam";
 import s3, { BUCKET_NAME } from "./instances/s3";
 
 const OPTIONS: RecordWebcamOptions = {
@@ -61,21 +53,19 @@ function Admin() {
   const queryParams = new URLSearchParams(window.location.search);
   const id = queryParams.get("id");
 
+  const [blob, setBlob] = useState<any>();
+
   const [url, setUrl] = useState();
   const [enableButtonSave, setEnableButtonSave] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [controls, setControls] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const reactPlayerRef = useRef<any>();
   const [status, setStatus] = useState(STATUS.idle.id);
 
-  const recordWebcam: RecordWebcamHook = useRecordWebcam(OPTIONS);
-
-  const getRecordingFileHooks = async () => {
-    const blob = await recordWebcam.getRecording();
-    return blob;
-  };
+  const webCamRef = useRef<RecordWebcam>(null);
 
   const getRecordingFileRenderProp = async (blob: Blob | undefined) => {
     console.log({ blob });
@@ -83,17 +73,15 @@ function Admin() {
 
   const startRecording = () => {
     setShowPreview(false);
-    if (
-      recordWebcam.status === CAMERA_STATUS.CLOSED ||
-      recordWebcam.status === CAMERA_STATUS.RECORDING ||
-      recordWebcam.status === CAMERA_STATUS.PREVIEW
-    ) {
+
+    const status = webCamRef.current?.state.status;
+    if (status === "CLOSED" || status === "RECORDING" || status === "PREVIEW") {
       alert("Camera is not ready");
       return;
     }
     setPlaying(true);
     setControls(true);
-    recordWebcam.start();
+    webCamRef.current?.handleStartRecording();
     setStatus(STATUS.start.id);
     if (reactPlayerRef?.current) {
       reactPlayerRef.current.playing = true;
@@ -101,40 +89,43 @@ function Admin() {
   };
 
   const stopRecording = () => {
-    if (recordWebcam.status !== CAMERA_STATUS.RECORDING) {
-      alert("Camera is not recording");
-      return;
-    }
     setPlaying(false);
     setControls(false);
-    recordWebcam.stop();
-    recordWebcam.retake();
     setStatus(STATUS.stop.id);
     setShowPreview(true);
     setEnableButtonSave(true);
-  };
-
-  const previewRecording = () => {
-    setShowPreview(true);
+    webCamRef.current?.handleStopRecording();
   };
 
   const reset = () => {
     setShowPreview(false);
     setPlaying(false);
     setControls(false);
-    recordWebcam.retake();
+    webCamRef.current?.handleRetakeRecording();
     setStatus(STATUS.idle.id);
     setEnableButtonSave(false);
   };
 
+  // blob?: Blob | null
   const saveRecording = async () => {
+    const blob = await webCamRef.current?.getRecording();
+
+    if (!blob) {
+      alert("No video to save");
+      return;
+    }
+
     if (!id) {
       alert("No video to save");
       return;
     }
-    setLoading(true);
+    setSaving(true);
 
-    const blob = await getRecordingFileHooks();
+    console.log("blob", blob);
+
+    const file = new File([blob], `${id}.mp4`, {
+      type: "video/mp4",
+    });
 
     let videoId = `${id}`.split("v=")[1];
     const ampersandPosition = videoId.indexOf("&");
@@ -146,31 +137,50 @@ function Admin() {
       {
         Bucket: BUCKET_NAME || "",
         Key: `${videoId}.mp4`,
-        Body: blob as any,
+        Body: file,
       },
-      (err, data) => {
+      async (err, data) => {
         if (err) {
           console.log(err);
           alert("Erro ao salvar vídeo");
-          setLoading(false);
+          setSaving(false);
           return;
         }
+
+        const entries = JSON.parse(localStorage.getItem("entries") ?? "[]");
+        const url = `https://${BUCKET_NAME}.s3.amazonaws.com/${videoId}.mp4`;
+
+        const alreadyExists = entries.find((entry: any) => entry.id === id);
+
+        if (alreadyExists) {
+          const newEntries = entries.map((entry: any) =>
+            entry.videoId === videoId ? { ...entry, url } : entry
+          );
+          localStorage.setItem("entries", JSON.stringify(newEntries));
+        } else {
+          entries.push({
+            id,
+            url,
+            videoId,
+          });
+          localStorage.setItem("entries", JSON.stringify(entries));
+        }
+
         console.log(data);
         alert("Vídeo salvo com sucesso");
-        setLoading(false);
+        setSaving(false);
+        window.location.href = "/videos";
       }
     );
 
-    setShowPreview(false);
+    // setShowPreview(false);
     setPlaying(false);
     setControls(false);
     setStatus(STATUS.save.id);
   };
 
   useEffect(() => {
-    if (recordWebcam) {
-      recordWebcam.open();
-    }
+    webCamRef.current?.handleOpenCamera();
   }, []);
 
   if (!id) {
@@ -223,61 +233,18 @@ function Admin() {
         <Box flex="1" borderRadius={8} bg="gray.800" p="8">
           <Flex mb="8" justify="space-between" align="center">
             <Heading size="lg" fontWeight="normal" color="white">
-              Admin
+              Criador de Sinalização
             </Heading>
-
-            <Menu>
-              <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
-                Ações
-              </MenuButton>
-              <MenuList>
-                <MenuItem onClick={recordWebcam.open}>Open camera</MenuItem>
-                <MenuItem
-                  disabled={
-                    recordWebcam.status === CAMERA_STATUS.CLOSED ||
-                    recordWebcam.status === CAMERA_STATUS.PREVIEW
-                  }
-                  onClick={recordWebcam.close}
-                >
-                  Close camera
-                </MenuItem>
-                <MenuItem
-                  disabled={
-                    recordWebcam.status === CAMERA_STATUS.CLOSED ||
-                    recordWebcam.status === CAMERA_STATUS.RECORDING ||
-                    recordWebcam.status === CAMERA_STATUS.PREVIEW
-                  }
-                  onClick={recordWebcam.start}
-                >
-                  Start recording
-                </MenuItem>
-                <MenuItem
-                  disabled={recordWebcam.status !== CAMERA_STATUS.RECORDING}
-                  onClick={recordWebcam.stop}
-                >
-                  Stop recording
-                </MenuItem>
-                <MenuItem
-                  disabled={recordWebcam.status !== CAMERA_STATUS.PREVIEW}
-                  onClick={recordWebcam.retake}
-                >
-                  Retake
-                </MenuItem>
-                <MenuItem
-                  disabled={recordWebcam.status !== CAMERA_STATUS.PREVIEW}
-                  onClick={recordWebcam.download}
-                >
-                  Download
-                </MenuItem>
-                <MenuItem
-                  disabled={recordWebcam.status !== CAMERA_STATUS.PREVIEW}
-                  onClick={getRecordingFileHooks}
-                >
-                  Get recording
-                </MenuItem>
-              </MenuList>
-            </Menu>
           </Flex>
+
+          {saving && (
+            <Flex mb="8">
+              <Spinner size="md" mr="5" color="white" />
+              <Heading size="lg" fontWeight="normal" color="white">
+                Salvando...
+              </Heading>
+            </Flex>
+          )}
 
           {enableButtonSave && (
             <Flex mb="8" justify="space-between" align="center">
@@ -285,6 +252,7 @@ function Admin() {
                 w="100%"
                 colorScheme="green"
                 size="lg"
+                disabled={saving}
                 onClick={saveRecording}
               >
                 SALVAR
@@ -294,6 +262,7 @@ function Admin() {
                 size="lg"
                 color="white"
                 ml="5"
+                disabled={saving}
                 onClick={reset}
               >
                 Refazer
@@ -314,7 +283,7 @@ function Admin() {
               height="600px"
               url={id}
               onStart={() => {
-                recordWebcam.previewRef.current?.play();
+                webCamRef.current?.previewRef.current?.play();
               }}
               onEnded={() => {
                 setStatus(STATUS.preview.id);
@@ -334,7 +303,7 @@ function Admin() {
               justifyContent="center"
               alignItems="center"
             >
-              <video ref={recordWebcam.previewRef} muted />
+              <video ref={webCamRef.current?.previewRef} muted />
             </Box>
           </Box>
 
@@ -359,44 +328,122 @@ function Admin() {
                 align="center"
                 top={showPreview ? "-4000px" : "-650px"}
               >
-                <video ref={recordWebcam.webcamRef} autoPlay muted />
-              </Stack>
+                <RecordWebcam
+                  ref={webCamRef}
+                  options={OPTIONS}
+                  render={(renderProps) => (
+                    <div>
+                      {/* <Text color="white">Component render prop demo</Text>
+                      <Text color="white">
+                        Camera status: {renderProps.status}
+                      </Text> */}
+                      <div>
+                        {/* <Button
+                          disabled={
+                            renderProps.status === "OPEN" ||
+                            renderProps.status === "RECORDING" ||
+                            renderProps.status === "PREVIEW"
+                          }
+                          onClick={renderProps.openCamera}
+                        >
+                          Open camera
+                        </Button>
+                        <Button
+                          disabled={renderProps.status === "CLOSED"}
+                          onClick={renderProps.closeCamera}
+                        >
+                          Close camera
+                        </Button>
 
-              {[STATUS.idle.id].includes(status) && (
-                <Button
-                  mt="5"
-                  width="100%"
-                  colorScheme="teal"
-                  onClick={startRecording}
-                >
-                  Começar
-                </Button>
-              )}
-              {[STATUS.start.id].includes(status) && (
-                <Button
-                  mt="5"
-                  width="100%"
-                  colorScheme="orange"
-                  onClick={stopRecording}
-                >
-                  Parar
-                </Button>
-              )}
-              {[STATUS.stop.id].includes(status) && !showPreview && (
-                <Button
-                  mt="5"
-                  width="100%"
-                  colorScheme="cyan"
-                  onClick={previewRecording}
-                >
-                  Visualizar
-                </Button>
-              )}
+                        <Button
+                          disabled={
+                            renderProps.status === "CLOSED" ||
+                            renderProps.status === "RECORDING" ||
+                            renderProps.status === "PREVIEW"
+                          }
+                          onClick={renderProps.start}
+                        >
+                          Start recording
+                        </Button>
+                        <Button
+                          disabled={renderProps.status !== "RECORDING"}
+                          onClick={renderProps.stop}
+                        >
+                          Stop recording
+                        </Button>
+                        <Button
+                          disabled={renderProps.status !== "PREVIEW"}
+                          onClick={renderProps.retake}
+                        >
+                          Retake
+                        </Button>
+                        <Button
+                          disabled={renderProps.status !== "PREVIEW"}
+                          onClick={renderProps.download}
+                        >
+                          Download
+                        </Button>
+                        <Button
+                          disabled={renderProps.status !== "PREVIEW"}
+                          onClick={async () => {
+                            const blob = await renderProps.getRecording();
+                            // @ts-ignore
+                            saveRecording(blob);
+                          }}
+                        >
+                          Get blob
+                        </Button> */}
+
+                        {[STATUS.idle.id].includes(status) && (
+                          <Button
+                            mb="5"
+                            width="100%"
+                            colorScheme="teal"
+                            onClick={startRecording}
+                            disabled={
+                              renderProps.status === "CLOSED" ||
+                              renderProps.status === "RECORDING" ||
+                              renderProps.status === "PREVIEW"
+                            }
+                          >
+                            Começar
+                          </Button>
+                        )}
+                        {[STATUS.start.id].includes(status) && (
+                          <Button
+                            mb="5"
+                            width="100%"
+                            colorScheme="orange"
+                            disabled={renderProps.status !== "RECORDING"}
+                            onClick={stopRecording}
+                          >
+                            Parar
+                          </Button>
+                        )}
+                        {/* <Button
+                          mb="5"
+                          width="100%"
+                          colorScheme="orange"
+                          onClick={async () => {
+                            const blob = await renderProps.getRecording();
+                            // @ts-ignore
+                            await saveRecording(blob);
+                          }}
+                        >
+                          SAVE
+                        </Button> */}
+                      </div>
+                    </div>
+                  )}
+                />
+              </Stack>
             </GridItem>
           </Grid>
         </Box>
         <Divider />
-        <Text color="white">Camera status: {recordWebcam.status}</Text>
+        <Text color="white">
+          Camera status: {webCamRef.current?.state.status}
+        </Text>
       </Box>
     </ChakraProvider>
   );

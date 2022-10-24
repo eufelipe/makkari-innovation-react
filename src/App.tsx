@@ -1,6 +1,8 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Admin from "./Admin";
+import Player from "./Player";
 import User from "./User";
+import Videos from "./Videos";
 import Viewer from "./Viewer";
 
 function App() {
@@ -10,6 +12,8 @@ function App() {
         <Route path="/" element={<User />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/viewer" element={<Viewer />} />
+        <Route path="/videos" element={<Videos />} />
+        <Route path="/player" element={<Player />} />
       </Routes>
     </BrowserRouter>
   );
