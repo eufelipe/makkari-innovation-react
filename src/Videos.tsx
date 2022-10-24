@@ -22,14 +22,19 @@ function Videos() {
         <Box flex="1" borderRadius={8} bg="gray.800" p="8">
           <SimpleGrid columns={[2, null, 3]} spacing="40px" gap={10}>
             {entries.map((entry: any) => (
-              <Box boxSize="sm" key={entry.id} mr="10">
-                <Link href={`/player?id=${entry.videoId}`}>
-                  <Image
-                    src={`https://i.ytimg.com/vi/${entry.videoId}/maxresdefault.jpg`}
-                    alt=""
-                  />
-                </Link>
-              </Box>
+              <Link
+                href={`/player?id=${entry.videoId}`}
+                key={entry.id}
+                border="10px solid transparent"
+                _hover={{
+                  borderColor: "pink.500",
+                }}
+              >
+                <Image
+                  src={`https://i.ytimg.com/vi/${entry.videoId}/maxresdefault.jpg`}
+                  alt=""
+                />
+              </Link>
             ))}
           </SimpleGrid>
         </Box>

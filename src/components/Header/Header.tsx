@@ -1,6 +1,6 @@
 import { Box, Flex } from "@chakra-ui/react";
 import { Logo } from "./Logo";
-import { Profile } from "./Profile";
+import { Menu } from "./Menu";
 
 export function Header() {
   return (
@@ -16,11 +16,13 @@ export function Header() {
         align="center"
         as="header"
       >
-        <Box as="a">
+        <Box as="a" href="/">
           <Logo />
         </Box>
 
-        <Profile />
+        <Flex ml="auto" flex={1}>
+          <Menu />
+        </Flex>
       </Flex>
     </>
   );

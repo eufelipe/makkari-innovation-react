@@ -26,7 +26,18 @@ function Player() {
 
   return (
     <ChakraProvider resetCSS theme={theme}>
-      <Box maxWidth={1120} margin="0 auto">
+      <Box
+        maxWidth={1120}
+        margin="0 auto"
+        sx={{
+          "-ms-user-select": "none",
+          "-moz-user-select": "none",
+          "-webkit-user-select": "none",
+          "-webkit-touch-callout": "none",
+          "-khtml-user-select": "none",
+          "user-select": "none",
+        }}
+      >
         <Header />
         <Box flex="1" borderRadius={8} bg="gray.800" p="8">
           {video && (
